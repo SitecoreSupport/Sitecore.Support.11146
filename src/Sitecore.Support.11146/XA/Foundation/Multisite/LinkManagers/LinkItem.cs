@@ -1,27 +1,21 @@
-﻿using System;
-using System.Xml;
-using Sitecore.Data;
-using Sitecore.Data.Fields;
-using Sitecore.Data.Items;
-using Sitecore.Links;
-using Sitecore.Sites;
-using Sitecore.Web;
-using Sitecore.XA.Foundation.IoC;
-using Sitecore.XA.Foundation.SitecoreExtensions.Extensions;
-using Sitecore.Xml;
-using Sitecore.XA.Foundation.Multisite;
-
-namespace Sitecore.Support.XA.Foundation.Multisite.LinkManagers
+﻿namespace Sitecore.Support.XA.Foundation.Multisite.LinkManagers
 {
-  public class LinkItem: Sitecore.XA.Foundation.Multisite.LinkManagers.LinkItem
+  using Microsoft.Extensions.DependencyInjection;
+  using Sitecore.Data.Items;
+  using Sitecore.Links;
+  using Sitecore.Sites;
+  using Sitecore.XA.Foundation.Multisite;
+  using Sitecore.XA.Foundation.SitecoreExtensions.Extensions;
+  using Sitecore.Xml;
+  using System.Xml;
+
+  public class LinkItem : Sitecore.XA.Foundation.Multisite.LinkManagers.LinkItem
   {
     private string Url { get; set; }
     private string QueryString { get; set; }
 
     public LinkItem(string xml) : base(xml)
     {
-
-
       if (string.IsNullOrEmpty(xml))
       {
         return;
@@ -49,15 +43,16 @@ namespace Sitecore.Support.XA.Foundation.Multisite.LinkManagers
             Url = "#" + Url;
           }
         }
-        XmlAttribute QueryStrAttr = node.Attributes["querystring"];
-        if (QueryStrAttr != null)
-        {
 
-          QueryString = QueryStrAttr.Value;
+        XmlAttribute queryStrAttr = node.Attributes["querystring"];
+        if (queryStrAttr != null)
+        {
+          QueryString = queryStrAttr.Value;
         }
       }
     }
-      public override string TargetUrl
+
+    public override string TargetUrl
     {
       get
       {
@@ -70,23 +65,32 @@ namespace Sitecore.Support.XA.Foundation.Multisite.LinkManagers
 
           if (IsInternal)
           {
-            var targetSiteInfo = ServiceLocator.Current.Resolve<ISiteInfoResolver>().GetSiteInfo(TargetItem);
+            var targetSiteInfo = DependencyInjection.ServiceLocator.ServiceProvider.GetService<ISiteInfoResolver>().GetSiteInfo(TargetItem);
             var urlOptions = (UrlOptions)UrlOptions.DefaultOptions.Clone();
+
             if (targetSiteInfo != null)
             {
-              urlOptions.Site = new SiteContext(targetSiteInfo);
-
-              urlOptions.LanguageEmbedding = LanguageEmbedding.Never;
+              var targetSiteContext = new SiteContext(targetSiteInfo);
+              urlOptions.Site = targetSiteContext;
             }
 
-            return LinkManager.GetItemUrl(TargetItem, urlOptions) + (string.IsNullOrEmpty(QueryString) ? "" : "?" + QueryString);
+            string link = LinkManager.GetItemUrl(TargetItem, urlOptions);
+
+            if (!string.IsNullOrEmpty(QueryString))
+            {
+              if (link.Contains("?"))
+              {
+                return link + "&" + QueryString;
+              }
+              return link + "?" + QueryString;
+            }
+
+            return link;
           }
         }
 
         return Url;
       }
     }
-
   }
-    
 }
